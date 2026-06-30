@@ -2,6 +2,10 @@
 
 ![AccessiMatch AI Banner](./accessimatch_banner.png)
 
+<p align="center">
+  <img src="./accessimatch_logo.png" alt="AccessiMatch AI Logo" width="120" />
+</p>
+
 AccessiMatch AI converts World Cup match moments into accessible, real-time explanations for blind, low-vision, neurodivergent, first-time, child-friendly, and tactical audiences.
 
 The project is designed for the **IBM SkillsBuild AI Student Innovation Challenge**. It focuses on human-centered, explainable, and accessible AI instead of generic predictions, trivia, fantasy, or static analytics dashboards.
