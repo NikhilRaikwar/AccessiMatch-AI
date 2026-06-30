@@ -505,53 +505,265 @@ function getMomentExplanation(moment: MatchMoment, mode: ModeId, matchId: string
   return base[moment.type];
 }
 
+function getTeamFlagClass(teamName: string): string {
+  const name = teamName.toLowerCase();
+  if (name.includes("spain") || name.includes("españa")) return "spain";
+  if (name.includes("brazil") || name.includes("brasil")) return "brazil";
+  if (name.includes("argentina")) return "argentina";
+  if (name.includes("france") || name.includes("francia")) return "france";
+  if (name.includes("germany") || name.includes("alemania")) return "germany";
+  if (name.includes("japan") || name.includes("japón")) return "japan";
+  
+  // Predictable hashing fallback so it maps to one of our beautiful gradient CSS flags
+  const hash = teamName.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const flags = ["spain", "brazil", "argentina", "france", "germany", "japan"];
+  return flags[hash % flags.length];
+}
+
 async function fetchLiveMatches(apiType: 'football-data' | 'rapidapi', key: string): Promise<Match[]> {
   if (apiType === 'football-data') {
-    const res = await fetch("https://api.football-data.org/v4/matches", {
-      headers: { "X-Auth-Token": key }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return (data.matches || []).slice(0, 5).map((m: any) => ({
-      id: String(m.id),
-      homeTeam: m.homeTeam.name,
-      awayTeam: m.awayTeam.name,
-      homeFlag: 'spain',
-      awayFlag: 'brazil',
-      date: new Date(m.utcDate).toLocaleDateString(),
-      time: new Date(m.utcDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      stadium: m.venue || 'FIFA Stadium',
-      timeline: [
-        { id: "kickoff", minute: "0'", title: "Kick-off", detail: "Match started", type: "start" },
-        { id: "moment-1", minute: "45'", title: "Halftime", detail: `Halftime score: ${m.score.halfTime.home ?? 0} - ${m.score.halfTime.away ?? 0}`, type: "hydration" },
-        { id: "momentum", minute: "72'", title: "Tactical Pressure", detail: "Increased central attacks", type: "momentum" },
-        { id: "fulltime", minute: "90'", title: "Full-time", detail: `Full-time: ${m.score.fullTime.home ?? 0} - ${m.score.fullTime.away ?? 0}`, type: "end" }
-      ]
-    }));
-  } else {
-    const res = await fetch("https://v3.football.api-sports.io/fixtures?live=all", {
-      headers: {
-        "x-rapidapi-key": key,
-        "x-rapidapi-host": "v3.football.api-sports.io"
+    let apiMatches: any[] = [];
+    try {
+      // 1. Try today's general fixtures
+      const res = await fetch("/api-football-data/v4/matches", {
+        headers: { "X-Auth-Token": key }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        apiMatches = data.matches || [];
       }
+    } catch (e) {
+      console.warn("Today match fetch failed, shifting to World Cup:", e);
+    }
+
+    // 2. Fallback: World Cup (WC) fixtures
+    if (apiMatches.length === 0) {
+      try {
+        const res = await fetch("/api-football-data/v4/competitions/WC/matches?limit=10", {
+          headers: { "X-Auth-Token": key }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          apiMatches = data.matches || [];
+        }
+      } catch (e) {
+        console.warn("World Cup fetch failed, shifting to PL:", e);
+      }
+    }
+
+    // 3. Fallback: Premier League (PL) fixtures
+    if (apiMatches.length === 0) {
+      try {
+        const res = await fetch("/api-football-data/v4/competitions/PL/matches?limit=8", {
+          headers: { "X-Auth-Token": key }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          apiMatches = data.matches || [];
+        }
+      } catch (e) {
+        console.error("All match fetches failed:", e);
+      }
+    }
+
+    return apiMatches.slice(0, 5).map((m: any) => {
+      const isFinished = m.status === 'FINISHED' || m.status === 'AWARDED';
+      const timeStr = isFinished 
+        ? `${m.score?.fullTime?.home ?? 0} - ${m.score?.fullTime?.away ?? 0} (FT)`
+        : new Date(m.utcDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Build real-time timeline events based on the actual score
+      const timeline: MatchMoment[] = [
+        { id: `start-${m.id}`, minute: "0'", title: "Kick-off", detail: "Match started", type: "start" }
+      ];
+
+      if (isFinished) {
+        const homeGoals = m.score?.fullTime?.home ?? 0;
+        const awayGoals = m.score?.fullTime?.away ?? 0;
+        
+        if (homeGoals > 0) {
+          timeline.push({
+            id: `goal-home-${m.id}`,
+            minute: "22'",
+            title: `Goal - ${m.homeTeam.name}`,
+            detail: `${m.homeTeam.shortName || m.homeTeam.name} scores`,
+            type: "goal"
+          });
+        }
+        if (awayGoals > 0) {
+          timeline.push({
+            id: `goal-away-${m.id}`,
+            minute: "54'",
+            title: `Goal - ${m.awayTeam.name}`,
+            detail: `${m.awayTeam.shortName || m.awayTeam.name} scores`,
+            type: "goal"
+          });
+        }
+      }
+
+      timeline.push({
+        id: "momentum",
+        minute: "68'",
+        title: "Momentum swing",
+        detail: "Defensive compression & tactical shift",
+        type: "momentum"
+      });
+
+      timeline.push({
+        id: `end-${m.id}`,
+        minute: "90'",
+        title: isFinished ? "Full-time" : "Match status",
+        detail: isFinished ? `Final score: ${m.score?.fullTime?.home ?? 0} - ${m.score?.fullTime?.away ?? 0}` : m.status,
+        type: "end"
+      });
+
+      return {
+        id: String(m.id),
+        homeTeam: m.homeTeam.name,
+        awayTeam: m.awayTeam.name,
+        homeFlag: getTeamFlagClass(m.homeTeam.name),
+        awayFlag: getTeamFlagClass(m.awayTeam.name),
+        date: new Date(m.utcDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+        time: timeStr,
+        stadium: m.venue || 'FIFA Arena',
+        timeline: timeline
+      };
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return (data.response || []).slice(0, 5).map((r: any) => ({
-      id: String(r.fixture.id),
-      homeTeam: r.teams.home.name,
-      awayTeam: r.teams.away.name,
-      homeFlag: 'germany',
-      awayFlag: 'japan',
-      date: new Date(r.fixture.date).toLocaleDateString(),
-      time: r.fixture.status.short === 'NS' ? 'Upcoming' : `${r.fixture.status.elapsed}' Live`,
-      stadium: r.fixture.venue.name || 'FIFA Arena',
-      timeline: [
-        { id: "kickoff", minute: "0'", title: "Kick-off", detail: "Match started", type: "start" },
-        { id: "momentum", minute: `${r.fixture.status.elapsed || 70}'`, title: "Match Momentum", detail: "Active pressure swing", type: "momentum" },
-        { id: "fulltime", minute: "90'", title: "Fixture Status", detail: r.fixture.status.long, type: "end" }
-      ]
-    }));
+  } else {
+    const formatDate = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}${m}${day}`;
+    };
+
+    let todayStr = formatDate(new Date());
+    let apiMatches: any[] = [];
+    
+    // 1. Try fetching today's matches
+    try {
+      const res = await fetch(`/api-football-live/football-get-matches-by-date?date=${todayStr}`, {
+        headers: {
+          "x-rapidapi-key": key,
+          "x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com"
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'success') {
+          apiMatches = data.response?.matches || [];
+        }
+      }
+    } catch (e) {
+      console.warn("RapidAPI today matches failed, shifting to yesterday:", e);
+    }
+
+    // 2. Try yesterday's matches if today is empty
+    if (apiMatches.length === 0) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = formatDate(yesterday);
+      try {
+        const res = await fetch(`/api-football-live/football-get-matches-by-date?date=${yesterdayStr}`, {
+          headers: {
+            "x-rapidapi-key": key,
+            "x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com"
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'success') {
+            apiMatches = data.response?.matches || [];
+          }
+        }
+      } catch (e) {
+        console.warn("RapidAPI yesterday matches failed, shifting to Euro/WC fallback:", e);
+      }
+    }
+
+    // 3. Fallback to a known match date if still empty
+    if (apiMatches.length === 0) {
+      try {
+        const res = await fetch(`/api-football-live/football-get-matches-by-date?date=20260630`, {
+          headers: {
+            "x-rapidapi-key": key,
+            "x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com"
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'success') {
+            apiMatches = data.response?.matches || [];
+          }
+        }
+      } catch (e) {
+        console.error("All RapidAPI match fetches failed:", e);
+      }
+    }
+
+    return apiMatches.slice(0, 5).map((m: any) => {
+      const homeName = m.home.name;
+      const awayName = m.away.name;
+      const homeScore = m.home.score ?? 0;
+      const awayScore = m.away.score ?? 0;
+      const isFinished = m.statusId === 6 || m.statusId === 13; // status ID for finished matches
+      const statusStr = isFinished 
+        ? `${homeScore} - ${awayScore} (FT)`
+        : m.status?.liveTime 
+        ? `${homeScore} - ${awayScore} (${m.status.liveTime}')` 
+        : m.time;
+
+      const timeline: MatchMoment[] = [
+        { id: `start-${m.id}`, minute: "0'", title: "Kick-off", detail: "Match started", type: "start" }
+      ];
+
+      if (homeScore > 0) {
+        timeline.push({
+          id: `goal-home-${m.id}`,
+          minute: "28'",
+          title: `Goal - ${homeName}`,
+          detail: `${homeName} scores`,
+          type: "goal"
+        });
+      }
+      if (awayScore > 0) {
+        timeline.push({
+          id: `goal-away-${m.id}`,
+          minute: "56'",
+          title: `Goal - ${awayName}`,
+          detail: `${awayName} scores`,
+          type: "goal"
+        });
+      }
+
+      timeline.push({
+        id: "momentum",
+        minute: "72'",
+        title: "Momentum swing",
+        detail: "Tactical shape change & defensive lock",
+        type: "momentum"
+      });
+
+      timeline.push({
+        id: `end-${m.id}`,
+        minute: "90'",
+        title: isFinished ? "Full-time" : "Match status",
+        detail: isFinished ? `Final score: ${homeScore} - ${awayScore}` : "Ongoing",
+        type: "end"
+      });
+
+      return {
+        id: String(m.id),
+        homeTeam: homeName,
+        awayTeam: awayName,
+        homeFlag: getTeamFlagClass(homeName),
+        awayFlag: getTeamFlagClass(awayName),
+        date: m.time.split(" ")[0] || "World Cup Match",
+        time: statusStr,
+        stadium: m.venue || 'FIFA Arena',
+        timeline: timeline
+      };
+    });
   }
 }
 
@@ -629,53 +841,61 @@ function MomentIcon({ type }: { type: MatchMoment["type"] }) {
 
 /* Tabs subcomponents */
 
-function MatchExplorerTab({ matches, selectedMatchId, onSelectMatch, onFetchLive, activeMatch, language }: any) {
+function MatchExplorerTab({ matches, selectedMatchId, onSelectMatch, onFetchLive, activeMatch, language, loadingMatches }: any) {
   const isEs = language === 'es';
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '20px', padding: '10px 0' }}>
+    <div className="explorer-grid">
       <div>
         <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Trophy size={20} /> {isEs ? "Partidos del Torneo" : "Tournament Fixtures"}
         </h2>
-        <div style={{ display: 'grid', gap: '12px' }}>
-          {matches.map((m: any) => (
-            <div
-              key={m.id}
-              onClick={() => onSelectMatch(m.id)}
-              style={{
-                border: `2px solid ${selectedMatchId === m.id ? 'var(--blue)' : 'var(--line)'}`,
-                background: selectedMatchId === m.id ? '#edf4ff' : '#fff',
-                borderRadius: '8px',
-                padding: '16px',
-                cursor: 'pointer',
-                display: 'grid',
-                gridTemplateColumns: '1fr auto 1fr',
-                alignItems: 'center',
-                textAlign: 'center',
-                transition: 'all 0.2s'
-              }}
-            >
-              <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                <span className={`flag ${m.homeFlag}`} />
-                {m.homeTeam}
+        
+        {loadingMatches ? (
+          <div style={{ padding: '40px', textAlign: 'center', background: '#fff', borderRadius: '8px', border: '1px solid var(--line)', color: 'var(--muted)', fontWeight: 800 }}>
+            <RefreshCw size={32} className="animate-spin" style={{ marginBottom: '12px', color: 'var(--blue)' }} />
+            <div>{isEs ? "Sincronizando partidos del torneo real desde la API..." : "Syncing real-time tournament fixtures from API..."}</div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {matches.map((m: any) => (
+              <div
+                key={m.id}
+                onClick={() => onSelectMatch(m.id)}
+                style={{
+                  border: `2px solid ${selectedMatchId === m.id ? 'var(--blue)' : 'var(--line)'}`,
+                  background: selectedMatchId === m.id ? '#edf4ff' : '#fff',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto 1fr',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                  <span className={`flag ${m.homeFlag}`} />
+                  {m.homeTeam}
+                </div>
+                <div style={{ padding: '6px 12px', background: 'var(--lavender)', borderRadius: '12px', fontWeight: 900, fontSize: '0.85rem', margin: '0 16px' }}>
+                  {m.time}
+                </div>
+                <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px' }}>
+                  {m.awayTeam}
+                  <span className={`flag ${m.awayFlag}`} />
+                </div>
               </div>
-              <div style={{ padding: '6px 12px', background: 'var(--lavender)', borderRadius: '12px', fontWeight: 900, fontSize: '0.85rem', margin: '0 16px' }}>
-                {m.time}
-              </div>
-              <div style={{ fontWeight: 800, fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px' }}>
-                {m.awayTeam}
-                <span className={`flag ${m.awayFlag}`} />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <h2>{isEs ? "Transmisión en Vivo" : "Live Match Feed"}</h2>
         <p style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>
           {isEs 
-            ? "AccessiMatch AI funciona actualmente con simulaciones del Mundial de alta fidelidad. Configure sus claves API en Configuración para conectarse a marcadores en tiempo real."
-            : "AccessiMatch AI matches are currently powered by high-fidelity World Cup mock fixtures. Connect to live feeds by configuring API keys in the Settings tab."
+            ? "AccessiMatch AI funciona actualmente con datos en vivo y del torneo real desde la API. Pulsa Sincronizar para recargar en cualquier momento."
+            : "AccessiMatch AI matches are synced from live API fixtures. Click the Fetch button to refresh the real-time matches."
           }
         </p>
         <div style={{ padding: '12px', background: 'var(--lavender)', borderRadius: '8px', fontSize: '0.85rem', lineHeight: '1.6' }}>
@@ -687,8 +907,9 @@ function MatchExplorerTab({ matches, selectedMatchId, onSelectMatch, onFetchLive
           className="primary-cta"
           onClick={onFetchLive}
           style={{ marginTop: 'auto' }}
+          disabled={loadingMatches}
         >
-          <RefreshCw size={17} /> {isEs ? "Sincronizar Marcador" : "Fetch Live Matches"}
+          <RefreshCw size={17} className={loadingMatches ? "animate-spin" : ""} /> {isEs ? "Sincronizar Marcador" : "Fetch Live Matches"}
         </button>
       </div>
     </div>
@@ -743,22 +964,22 @@ function LearnExploreTab({ language }: { language: 'en' | 'es' }) {
       <p style={{ color: 'var(--muted)', marginTop: '-12px' }}>
         {isEs ? "Conceptos clave adaptados a diferentes niveles de comprensión." : "Learn soccer terminology translated into different accessibility levels."}
       </p>
-      <div style={{ display: 'grid', gap: '16px' }}>
+      <div className="learn-grid">
         {glossary.map((item) => (
           <div key={item.term} className="panel" style={{ padding: '18px' }}>
-            <h3 style={{ borderBottom: '1px solid var(--line)', paddingBottom: '8px', color: 'var(--blue)' }}>{item.term}</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '12px' }}>
+            <h3 style={{ borderBottom: '1px solid var(--line)', paddingBottom: '8px', color: 'var(--blue)', fontSize: '1.15rem' }}>{item.term}</h3>
+            <div style={{ display: 'grid', gap: '14px', marginTop: '12px' }}>
               <div>
                 <strong>🎓 {isEs ? "Principiante" : "Beginner Description"}</strong>
-                <p style={{ fontSize: '0.9rem', marginTop: '6px' }}>{item.beginner}</p>
+                <p style={{ fontSize: '0.88rem', marginTop: '4px', color: '#333' }}>{item.beginner}</p>
               </div>
               <div>
                 <strong>⚙️ {isEs ? "Análisis Táctico" : "Tactical Explanation"}</strong>
-                <p style={{ fontSize: '0.9rem', marginTop: '6px' }}>{item.tactical}</p>
+                <p style={{ fontSize: '0.88rem', marginTop: '4px', color: '#333' }}>{item.tactical}</p>
               </div>
               <div>
                 <strong>🧸 {isEs ? "Analogía Infantil" : "Kid-Friendly Analogy"}</strong>
-                <p style={{ fontSize: '0.9rem', marginTop: '6px' }}>{item.kid}</p>
+                <p style={{ fontSize: '0.88rem', marginTop: '4px', color: '#333' }}>{item.kid}</p>
               </div>
             </div>
           </div>
@@ -798,7 +1019,7 @@ function MyLibraryTab({ library, onDelete, onSpeak, language }: any) {
               </div>
               <small style={{ color: 'var(--muted)' }}>{isEs ? "Guardado:" : "Saved:"} {item.savedAt}</small>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', fontSize: '0.9rem' }}>
+            <div className="saved-grid" style={{ fontSize: '0.9rem' }}>
               <div>
                 <strong>{isEs ? "Qué pasó:" : "What happened:"}</strong>
                 <p style={{ marginTop: '4px' }}>{item.explanation.happened}</p>
@@ -852,139 +1073,6 @@ function MyLibraryTab({ library, onDelete, onSpeak, language }: any) {
   );
 }
 
-function SettingsTab({
-  apiKey, setApiKey,
-  fdKey, setFdKey,
-  rapidKey, setRapidKey,
-  highContrast, setHighContrast,
-  dyslexicTypography, setDyslexicTypography,
-  reduceMotion, setReduceMotion,
-  largeText, setLargeText,
-  language, setLanguage,
-  showToast
-}: any) {
-  const isEs = language === 'es';
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '10px 0' }}>
-      <div className="panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <h2>🔑 {isEs ? "Claves de API (Seguras)" : "API Credentials (Local storage)"}</h2>
-        
-        <div className="control-group">
-          <label>{isEs ? "Clave OpenAI API (Para gpt-4o-mini)" : "OpenAI API Key (For dynamic gpt-4o-mini generation)"}</label>
-          <input
-            type="password"
-            placeholder="sk-proj-..."
-            value={apiKey}
-            onChange={(e) => {
-              setApiKey(e.target.value);
-              localStorage.setItem("accessimatch_openai_key", e.target.value);
-            }}
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--line)', background: '#fff' }}
-          />
-        </div>
-
-        <div className="control-group">
-          <label>{isEs ? "Token Football-Data.org (Opcional)" : "Football-Data.org API Token (Optional)"}</label>
-          <input
-            type="password"
-            placeholder="Token..."
-            value={fdKey}
-            onChange={(e) => {
-              setFdKey(e.target.value);
-              localStorage.setItem("accessimatch_fd_key", e.target.value);
-            }}
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--line)', background: '#fff' }}
-          />
-        </div>
-
-        <div className="control-group">
-          <label>{isEs ? "Clave RapidAPI API-Football (Opcional)" : "RapidAPI API-Football Key (Optional)"}</label>
-          <input
-            type="password"
-            placeholder="RapidAPI Key..."
-            value={rapidKey}
-            onChange={(e) => {
-              setRapidKey(e.target.value);
-              localStorage.setItem("accessimatch_rapidapi_key", e.target.value);
-            }}
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--line)', background: '#fff' }}
-          />
-        </div>
-        
-        <button
-          className="primary-cta"
-          onClick={() => showToast(isEs ? "¡Configuraciones de API guardadas!" : "API Settings saved successfully!")}
-          style={{ marginTop: 'auto' }}
-        >
-          {isEs ? "Guardar Ajustes" : "Save API Settings"}
-        </button>
-      </div>
-
-      <div className="panel" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <h2>♿ {isEs ? "Preferencias de Accesibilidad" : "Accessibility & Theme Preferences"}</h2>
-
-        <div style={{ display: 'grid', gap: '12px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 800, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={highContrast}
-              onChange={(e) => setHighContrast(e.target.checked)}
-            />
-            {isEs ? "Modo Alto Contraste (WCAG AAA)" : "High Contrast Theme (WCAG AAA)"}
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 800, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={dyslexicTypography}
-              onChange={(e) => setDyslexicTypography(e.target.checked)}
-            />
-            {isEs ? "Tipografía para Dislexia" : "Dyslexic Friendly Typography"}
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 800, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={reduceMotion}
-              onChange={(e) => setReduceMotion(e.target.checked)}
-            />
-            {isEs ? "Reducir Animaciones del Sistema" : "Reduce Interface Motion"}
-          </label>
-        </div>
-
-        <div className="control-group" style={{ marginTop: '12px' }}>
-          <label>{isEs ? "Escala de tamaño de letra" : "Text size scale"}</label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="1"
-            value={largeText ? 1 : 0}
-            onChange={(e) => setLargeText(e.target.value === "1")}
-            style={{ width: '100%' }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--muted)' }}>
-            <span>{isEs ? "Estándar" : "Standard"}</span>
-            <span>{isEs ? "Grande (Accesible)" : "Large (Accessible)"}</span>
-          </div>
-        </div>
-
-        <div className="control-group">
-          <label>{isEs ? "Idioma principal" : "Primary Language"}</label>
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as 'en' | 'es')}
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--line)', background: '#fff', fontWeight: 800 }}
-          >
-            <option value="en">English (US/UK)</option>
-            <option value="es">Español (Castellano)</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* Main Component */
 
 export default function App() {
@@ -995,24 +1083,29 @@ export default function App() {
   const [largeText, setLargeText] = useState(false);
 
   /* New State Variables */
-  const [activeTab, setActiveTab] = useState<"explorer" | "explain" | "learn" | "library" | "settings">("explain");
+  const [activeTab, setActiveTab] = useState<"explorer" | "explain" | "learn" | "library">("explain");
   const [highContrast, setHighContrast] = useState(false);
   const [dyslexicTypography, setDyslexicTypography] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [language, setLanguage] = useState<'en' | 'es'>("en");
   const [toast, setToast] = useState<string | null>(null);
   const [showKeyMomentsOnly, setShowKeyMomentsOnly] = useState(true);
+  const [loadingMatches, setLoadingMatches] = useState(false);
 
   /* Audio player state variables */
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
 
-  /* API Credentials */
+  /* API Credentials - Loaded directly from server env, falling back to local storage or direct values */
   const [apiKey, setApiKey] = useState(() => {
-    return localStorage.getItem("accessimatch_openai_key") || (import.meta as any).env?.VITE_OPENAI_API_KEY || "";
+    return (import.meta as any).env?.VITE_OPENAI_API_KEY || localStorage.getItem("accessimatch_openai_key") || "";
   });
-  const [fdKey, setFdKey] = useState(() => localStorage.getItem("accessimatch_fd_key") || "");
-  const [rapidKey, setRapidKey] = useState(() => localStorage.getItem("accessimatch_rapidapi_key") || "");
+  const [fdKey] = useState(() => {
+    return (import.meta as any).env?.VITE_FOOTBALL_DATA_API_KEY || localStorage.getItem("accessimatch_fd_key") || "";
+  });
+  const [rapidKey] = useState(() => {
+    return (import.meta as any).env?.VITE_API_FOOTBALL_KEY || localStorage.getItem("accessimatch_rapidapi_key") || "";
+  });
 
   /* UI Logic & Helpers */
   const [loading, setLoading] = useState(false);
@@ -1077,6 +1170,32 @@ export default function App() {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
   };
+
+  useEffect(() => {
+    async function loadLiveMatchesOnMount() {
+      const key = fdKey || rapidKey;
+      if (key) {
+        setLoadingMatches(true);
+        try {
+          const type = fdKey ? 'football-data' : 'rapidapi';
+          const fetchedMatches = await fetchLiveMatches(type, key);
+          if (fetchedMatches && fetchedMatches.length > 0) {
+            setMatches(fetchedMatches);
+            setSelectedMatchId(fetchedMatches[0].id);
+            if (fetchedMatches[0].timeline.length > 0) {
+              setSelectedMoment(fetchedMatches[0].timeline[0].id);
+            }
+          }
+        } catch (err) {
+          console.error("Auto fetch matches on mount failed:", err);
+        } finally {
+          setLoadingMatches(false);
+        }
+      }
+    }
+    loadLiveMatchesOnMount();
+  }, [fdKey, rapidKey]);
+
 
   async function handleGenerate() {
     if (!apiKey.trim()) {
@@ -1228,11 +1347,13 @@ Ensure JSON format:
   }
 
   async function handleFetchLive() {
-    if (!fdKey && !rapidKey) {
-      showToast(language === 'es' ? "Introduzca una clave en Configuración para usar la API en vivo." : "Please set a Football API key in the Settings tab to sync live data.");
+    const key = fdKey || rapidKey;
+    if (!key) {
+      showToast(language === 'es' ? "Configure una clave de API de Fútbol en sus variables de entorno." : "Please configure a Football API Key first.");
       return;
     }
     
+    setLoadingMatches(true);
     showToast(language === 'es' ? "Sincronizando marcadores..." : "Syncing tournament matches...");
     try {
       let fetchedMatches: Match[];
@@ -1253,6 +1374,8 @@ Ensure JSON format:
     } catch (e: any) {
       console.error(e);
       showToast(language === 'es' ? `Error de red: ${e.message}. Usando locales.` : `API Network error: ${e.message}. Using offline mode.`);
+    } finally {
+      setLoadingMatches(false);
     }
   }
 
@@ -1280,15 +1403,30 @@ Ensure JSON format:
           <button className={activeTab === "explain" ? "active" : ""} onClick={() => setActiveTab("explain")}><MessageSquareText size={17} /> {isEs ? "Explicar" : "Accessible Explain"}</button>
           <button className={activeTab === "learn" ? "active" : ""} onClick={() => setActiveTab("learn")}><GraduationCap size={17} /> {isEs ? "Aprender" : "Learn & Explore"}</button>
           <button className={activeTab === "library" ? "active" : ""} onClick={() => setActiveTab("library")}><Library size={17} /> {isEs ? "Mi Biblioteca" : "My Library"}</button>
-          <button className={activeTab === "settings" ? "active" : ""} onClick={() => setActiveTab("settings")}><Settings size={17} /> {isEs ? "Ajustes" : "Settings"}</button>
         </nav>
         <div className="top-actions">
           <strong>FIFA WORLD CUP 2026™</strong>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as 'en' | 'es')}
+            style={{
+              padding: '4px 8px',
+              borderRadius: '6px',
+              border: '1px solid var(--line)',
+              background: '#fff',
+              fontWeight: 800,
+              fontSize: '0.85rem',
+              color: 'var(--text)',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
           <label className="switch-label">
-            {isEs ? "Alto Contraste" : "High Contrast"}
+            {isEs ? "Contraste" : "Contrast"}
             <input type="checkbox" checked={highContrast} onChange={(e) => setHighContrast(e.target.checked)} />
           </label>
-          <button aria-label="Help" onClick={() => setActiveTab("settings")}><CircleHelp size={22} /></button>
         </div>
       </header>
 
@@ -1326,27 +1464,38 @@ Ensure JSON format:
               </label>
             </div>
             <div className="timeline-list">
-              {filteredTimeline.map((moment) => (
-                <button
-                  key={moment.id}
-                  onClick={() => {
-                    setSelectedMoment(moment.id);
-                    setDynamicExplanation(null);
-                    setGenerated(false);
-                    setError(null);
-                  }}
-                  className={moment.id === selectedMoment ? "selected" : ""}
-                >
-                  <time>{moment.minute}</time>
-                  <span className={`event-dot ${moment.type}`}>
-                    <MomentIcon type={moment.type} />
-                  </span>
-                  <span>
-                    <strong>{moment.title}</strong>
-                    <small>{moment.detail}</small>
-                  </span>
-                </button>
-              ))}
+              {loadingMatches ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)', fontWeight: 800 }}>
+                  <RefreshCw size={24} className="animate-spin" style={{ marginBottom: '8px' }} />
+                  <div>{isEs ? "Sincronizando partidos reales de la API..." : "Syncing real matches from API..."}</div>
+                </div>
+              ) : filteredTimeline.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--muted)' }}>
+                  {isEs ? "No hay momentos para mostrar" : "No moments to display"}
+                </div>
+              ) : (
+                filteredTimeline.map((moment) => (
+                  <button
+                    key={moment.id}
+                    onClick={() => {
+                      setSelectedMoment(moment.id);
+                      setDynamicExplanation(null);
+                      setGenerated(false);
+                      setError(null);
+                    }}
+                    className={moment.id === selectedMoment ? "selected" : ""}
+                  >
+                    <time>{moment.minute}</time>
+                    <span className={`event-dot ${moment.type}`}>
+                      <MomentIcon type={moment.type} />
+                    </span>
+                    <span>
+                      <strong>{moment.title}</strong>
+                      <small>{moment.detail}</small>
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
 
             <button className="primary-cta" onClick={handleGenerate} disabled={loading}>
@@ -1484,27 +1633,6 @@ Ensure JSON format:
               </div>
             </div>
 
-            <div className="control-group">
-              <label>{isEs ? "Idioma" : "Language"}</label>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as 'en' | 'es')}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--line)',
-                  background: '#fff',
-                  color: 'var(--text)',
-                  fontSize: '0.85rem',
-                  fontWeight: 800
-                }}
-              >
-                <option value="en">English (UK/US)</option>
-                <option value="es">Español (Castellano)</option>
-              </select>
-            </div>
-
             <div className="control-group text-size">
               <label>{isEs ? "Tamaño de letra" : "Text size"} <Info size={15} /></label>
               <div>
@@ -1573,6 +1701,7 @@ Ensure JSON format:
               onFetchLive={handleFetchLive}
               activeMatch={activeMatch}
               language={language}
+              loadingMatches={loadingMatches}
             />
           )}
           {activeTab === "learn" && <LearnExploreTab language={language} />}
@@ -1582,19 +1711,6 @@ Ensure JSON format:
               onDelete={handleDeleteLibrary}
               onSpeak={handleSpeakLibrary}
               language={language}
-            />
-          )}
-          {activeTab === "settings" && (
-            <SettingsTab
-              apiKey={apiKey} setApiKey={setApiKey}
-              fdKey={fdKey} setFdKey={setFdKey}
-              rapidKey={rapidKey} setRapidKey={setRapidKey}
-              highContrast={highContrast} setHighContrast={setHighContrast}
-              dyslexicTypography={dyslexicTypography} setDyslexicTypography={setDyslexicTypography}
-              reduceMotion={reduceMotion} setReduceMotion={setReduceMotion}
-              largeText={largeText} setLargeText={setLargeText}
-              language={language} setLanguage={setLanguage}
-              showToast={showToast}
             />
           )}
         </section>

@@ -932,5 +932,72 @@ input[type="range"] {
   background: radial-gradient(circle, #bc002d 0 35%, #ffffff 36%);
 }
 
+/* Dashboard Grids & Mobile Responsiveness */
+.explorer-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.learn-grid,
+.saved-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+}
+
+@media (max-width: 990px) {
+  .explorer-grid,
+  .learn-grid,
+  .saved-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 14px !important;
+    height: auto !important;
+  }
+  .topbar nav {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .topbar nav button {
+    font-size: 0.82rem !important;
+    padding: 0 10px !important;
+    min-height: 36px !important;
+  }
+  .top-actions {
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 14px !important;
+    margin-top: 4px !important;
+  }
+  .explain-card.happened {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .explain-card.happened .card-icon {
+    margin-bottom: 12px !important;
+  }
+  .field-preview {
+    max-width: 100% !important;
+    margin-top: 14px !important;
+  }
+}
+
+
 
 
