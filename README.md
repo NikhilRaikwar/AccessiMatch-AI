@@ -1,118 +1,103 @@
 # AccessiMatch AI
 
-AccessiMatch AI converts World Cup match moments into accessible explanations for blind, low-vision, neurodivergent, first-time, child-friendly, and tactical audiences.
+AccessiMatch AI converts World Cup match moments into accessible, real-time explanations for blind, low-vision, neurodivergent, first-time, child-friendly, and tactical audiences.
 
-The project is designed for the IBM SkillsBuild AI Student Innovation Challenge. It focuses on human-centered, explainable AI instead of predictions, trivia, fantasy, or generic tactical dashboards.
+The project is designed for the **IBM SkillsBuild AI Student Innovation Challenge**. It focuses on human-centered, explainable, and accessible AI instead of generic predictions, trivia, fantasy, or static analytics dashboards.
 
-## Problem
+---
 
-Billions of people watch the same World Cup moments, but not everyone can understand them equally. A blind fan may need spatial audio description. A first-time fan may need simple soccer language. A neurodivergent fan may need shorter, lower-load explanations. A child may need a safe, friendly version.
+## 🌟 Key Features
 
-AccessiMatch AI makes the same match moment understandable for different humans.
+### 📡 Real-Time Live Match Sync & API Feeds
+- **Automatic Auto-Fetch on Mount**: The app automatically queries active tournament schedules on mount.
+- **Multilevel Fallback Cascade**: 
+  - Tries to fetch **today's live matches** first.
+  - If today is off-season/empty, it queries past **FIFA World Cup (WC)** matches.
+  - If the World Cup feed is empty, it queries the **Premier League (PL)** matches.
+  - If all external API calls are down, it falls back to a high-fidelity offline mode.
+- **Audience-Specific Explanations**: Adapt explanations dynamically using OpenAI's **GPT-4o-mini** models or local backup templates.
+- **Dynamic Event Generator**: Injects dynamic Goal, Foul, Substitution, and Tactical pressure swing events into the timeline based on real-time match scores.
 
-## Solution
+### 🛡️ CORS Bypass Proxy Gateway (Vite + Vercel)
+To prevent browser-side CORS (Cross-Origin Resource Sharing) blockages during local development or production:
+- **Local Dev Proxy (`vite.config.ts`)**: Routes `/api-football-live` and `/api-football-data` local endpoints through Node.js, appending RapidAPI and Football-Data credentials server-side.
+- **Production Rewrites (`vercel.json`)**: Configures serverless path rewrites on Vercel so CORS-bypassing works in the cloud exactly as it does on localhost.
+- **Prevents Credentials Leaks**: No API keys are visible to client-side network inspectors.
 
-The prototype lets a user:
+### 📱 Streamlined & Premium Mobile UI
+- **Zero Settings Bloat**: Settings tab removed; core accessibility features (Language selector, High Contrast theme) are globally accessible directly from the header.
+- **Clean Responsive Grids**: Grids (`.explorer-grid`, `.learn-grid`, `.saved-grid`) collapse to a single column on screens under `990px`.
+- **Adaptive Header**: Under `768px`, the header topbar transitions to a clean vertical stack, centering branding and wrapping action elements seamlessly on all devices down to `320px`.
 
-- select a match moment from an event timeline
-- choose an accessibility mode
-- generate a structured explanation
-- hear the explanation through browser text-to-speech
-- adjust reading level, text size, contrast, motion, captions, and sources
+---
 
-Each generated explanation answers:
-
-- what happened
-- why it matters
-- what to watch next
-
-## IBM Technology Fit
-
-- **IBM Bob**: used as the IBM-supported AI development assistant for product planning, UI structure, accessibility-mode design, implementation support, README preparation, and submission documentation.
-- **IBM Granite-ready architecture**: the app is structured so mode-specific explanations can be replaced by Granite generation through watsonx.ai when an active runtime is available.
-- **Docling-ready source pipeline**: FIFA documents, accessibility guidance, and match reports can be processed into source snippets for cited explanations.
-- **LangChain / LangFlow-ready routing**: the selected match moment and audience mode can be routed to the right explanation prompt and source context.
-
-Current prototype status: the app runs fully in demo mode without paid APIs. IBM Bob usage is documented in [docs/ibm-bob-usage.md](docs/ibm-bob-usage.md), the full Mermaid architecture pack is in [docs/architecture.md](docs/architecture.md), and the Bob session-style development log is in [bob_sessions/bob_task_july-01-2026_accessimatch-ai.md](bob_sessions/bob_task_july-01-2026_accessimatch-ai.md).
-
-## Architecture
-
-```mermaid
-flowchart LR
-  A[Fan selects match moment] --> B[Audience mode router]
-  B --> C[Accessible explanation engine]
-  C --> D[What happened]
-  C --> E[Why it matters]
-  C --> F[What to watch next]
-  C --> G[Browser text-to-speech]
-  H[IBM Bob] --> I[Product planning and implementation]
-  H --> J[README and submission docs]
-  K[Future Granite API] -. optional .-> C
-  L[Future Docling sources] -. optional .-> C
-```
-
-```mermaid
-sequenceDiagram
-  participant User as Fan or judge
-  participant UI as AccessiMatch UI
-  participant Router as Mode router
-  participant Engine as Explanation engine
-  participant TTS as Browser speech synthesis
-
-  User->>UI: Select match moment
-  User->>UI: Choose Blind, Beginner, Low-load, Child, or Tactical
-  UI->>Router: Send moment and audience mode
-  Router->>Engine: Request structured explanation
-  Engine-->>UI: What happened, why it matters, what to watch next
-  User->>UI: Play audio
-  UI->>TTS: Speak accessible summary
-```
-
-## Demo Flow
+## 🧭 Demo Flow
 
 1. Open the app.
-2. Select the **Momentum swing** moment at 61'.
-3. Choose **Blind audio**, **Beginner**, **Low cognitive load**, **Child-friendly**, or **Tactical**.
-4. Click **Generate explanation**.
-5. Use **Play audio** to hear the explanation.
-6. Adjust reading level, large text, contrast, and caption controls.
+2. Select the **Match Explorer** tab to see real matches syncing from the API (with a visual loader).
+3. Select any match (e.g. *Germany vs Paraguay* or *France vs Sweden*).
+4. Go to **Accessible Explain** tab, select a moment from the timeline, and choose an audience mode (e.g. **Blind Audio**, **Beginner**, or **Tactical**).
+5. Click **Generate Explanation** to trigger the OpenAI GPT pipeline.
+6. Click **Play Audio** to hear browser text-to-speech audio description.
+7. Save the analysis to **My Library** to store explanations offline.
 
-## Why It Can Win
+---
 
-- Strong challenge fit: human-centered, explainable, accessible, global scale.
-- Less crowded than VAR explainers, predictors, tactical dashboards, and match companions.
-- Easy for judges to understand in a 3-minute demo.
-- Practical and emotionally clear: the same match becomes understandable for more fans.
+## 🛠️ Installation & Setup
 
-## Run
+1. Clone the repository:
+   ```bash
+   git clone git@github.com:NikhilRaikwar/AccessiMatch-AI.git
+   cd AccessiMatch-AI
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file in the project root:
+   ```env
+   VITE_OPENAI_API_KEY=your_openai_api_key_here
+   VITE_FOOTBALL_DATA_API_KEY=your_football_data_org_token_here
+   VITE_API_FOOTBALL_KEY=your_rapidapi_football_key_here
+   ```
+4. Run the local development server:
+   ```bash
+   npm run dev
+   ```
+5. Build the production package:
+   ```bash
+   npm run build
+   ```
 
-```bash
-npm install
-npm run dev
+---
+
+## 🏛️ Architecture
+
+```mermaid
+flowchart TD
+  User[Fan or Judge] -->|Select Moment| UI[AccessiMatch UI]
+  UI -->|Fetch Proxy| Proxy[Vite Dev Server / Vercel Rewrite]
+  Proxy -->|Secure Request| API[Football API / RapidAPI]
+  API -->|Real Match Data| Proxy
+  Proxy -->|CORS-Free JSON| UI
+  UI -->|Prompt & Context| GPT[OpenAI GPT-4o-mini]
+  GPT -->|Structured JSON| UI
+  UI -->|Speak Description| TTS[Browser Speech Synthesis]
+  
+  subgraph Local Dev / Vercel Edge
+    Proxy
+  end
 ```
 
-Build check:
+---
 
-```bash
-npm run build
-```
+## 🤖 IBM Technology Fit
 
-## Environment
+- **IBM Bob**: Used as the AI development assistant for planning, UI refactoring, CORS-bypass integration, and purging hardcoded secrets from git history.
+- **IBM Granite-ready architecture**: Structured to support Granite generation through watsonx.ai prompts once active billing is available.
+- **Docling-ready source pipeline**: Ready to ingest official FIFA rulebooks and technical reports to compile sources.
+- **LangChain / LangFlow-ready routing**: Prompt selectors map moments to the chosen accessibility profile.
 
-The current prototype runs with local demo data. For optional live Granite integration through watsonx.ai, add:
-
-```env
-VITE_IBM_API_KEY=
-VITE_IBM_PROJECT_ID=
-VITE_IBM_REGION=us-south
-VITE_IBM_GRANITE_MODEL_ID=ibm/granite-3-8b-instruct
-```
-
-## API / Tool Links
-
-- IBM Bob: https://www.ibm.com/products/bob
-- IBM watsonx.ai API: https://cloud.ibm.com/apidocs/watsonx-ai
-- IBM Granite community: https://github.com/ibm-granite-community
-- Docling docs: https://docling-project.github.io/docling/
-- LangFlow docs: https://docs.langflow.org/
-- LangChain JS docs: https://js.langchain.com/docs/
+For detailed development sessions, refer to the [bob_sessions/](bob_sessions/) directory:
+- [Session 1: Idea and Architecture Planning](bob_sessions/bob_task_july-01-2026_accessimatch-ai.md)
+- [Session 2: API Integration and Responsive Refactoring](bob_sessions/bob_session_api_and_responsive_refactoring.md)
