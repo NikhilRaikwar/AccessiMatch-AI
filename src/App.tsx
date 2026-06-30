@@ -420,89 +420,293 @@ function getMomentExplanation(moment: MatchMoment, mode: ModeId, matchId: string
   const dictionary = language === 'es' ? matchExplanationsEs : matchExplanations;
   const currentMatchDict = dictionary[matchId] || dictionary["spain-brazil"];
   
-  if (moment.id === "momentum") return currentMatchDict[mode];
+  if (moment.id === "momentum" || moment.type === "momentum") return currentMatchDict[mode];
 
-  const modePrefix: Record<ModeId, string> = language === 'es' ? {
-    blind: "Enfoque de audio:",
-    beginner: "Vista simple:",
-    cognitive: "Versión corta:",
-    child: "Para niños:",
-    tactical: "Vista táctica:",
+  const isEs = language === 'es';
+
+  if (moment.type === "start") {
+    const data: Record<ModeId, { happened: string; matters: string; watch: string }> = isEs ? {
+      blind: {
+        happened: "El partido ha comenzado. Escuche el pitido largo del árbitro y el clamor inicial de la afición.",
+        matters: "El sonido ambiente inicial establece el ritmo y la tensión del partido.",
+        watch: "Escuche la intensidad de los pases en corto y las primeras instrucciones de los técnicos."
+      },
+      beginner: {
+        happened: "El árbitro pita y los jugadores mueven el balón. El partido acaba de empezar.",
+        matters: "Comenzar bien ayuda a los jugadores a ganar confianza y a no ponerse nerviosos.",
+        watch: "Observe qué equipo mantiene más tiempo el balón en los primeros minutos."
+      },
+      cognitive: {
+        happened: "El juego comienza. El balón se mueve.",
+        matters: "El inicio marca el ritmo.",
+        watch: "Observe los primeros pases."
+      },
+      child: {
+        happened: "¡El silbato suena y comienza la diversión! Los jugadores corren tras el balón.",
+        matters: "¡Es hora de jugar y divertirse en la cancha!",
+        watch: "¡Busque quién corre más rápido tras el balón!"
+      },
+      tactical: {
+        happened: "Inicio del encuentro. Ambos equipos despliegan sus bloques iniciales estructurados.",
+        matters: "Define las intenciones posicionales iniciales y la altura de la línea de presión.",
+        watch: "Monitoree la transición de fase defensiva a ofensiva en los primeros minutos."
+      }
+    } : {
+      blind: {
+        happened: "The match has started. Listen for the referee's long whistle and the initial roar of the crowd.",
+        matters: "The opening soundscape establishes the tempo and high stakes of the fixture.",
+        watch: "Listen for the frequency of short passes and sideline instructions."
+      },
+      beginner: {
+        happened: "The referee blows the whistle and players move the ball. The match is starting.",
+        matters: "Starting well helps players build confidence and calm their nerves.",
+        watch: "Watch which team keeps possession of the ball in the first few minutes."
+      },
+      cognitive: {
+        happened: "The game starts. The ball is in play.",
+        matters: "The start sets the rhythm.",
+        watch: "Watch the first passes."
+      },
+      child: {
+        happened: "The whistle blows and the fun starts! The players run after the ball.",
+        matters: "It is time to play and score goals!",
+        watch: "Look at who runs the fastest to get the ball!"
+      },
+      tactical: {
+        happened: "Kick-off initiated. Both squads deploy their structured default shapes.",
+        matters: "Establishes initial block heights and pressing triggers.",
+        watch: "Monitor the spatial transitions between phases in the opening minutes."
+      }
+    };
+    return data[mode];
+  }
+
+  if (moment.type === "goal") {
+    const data: Record<ModeId, { happened: string; matters: string; watch: string }> = isEs ? {
+      blind: {
+        happened: `¡Gol de ${moment.title}! Escuche el grito masivo del estadio y la celebración de los jugadores.`,
+        matters: "El gol cambia drásticamente el ambiente acústico y la presión del encuentro.",
+        watch: "Escuche la tensión en los despejes del equipo que va perdiendo."
+      },
+      beginner: {
+        happened: `Un jugador ha anotado un gol para ${moment.title}. El balón entró en la portería.`,
+        matters: "El equipo que anota obtiene una ventaja. El rival ahora debe atacar más para empatar.",
+        watch: "Observe si el equipo que anotó comienza a defender más su portería."
+      },
+      cognitive: {
+        happened: "Gol anotado. El balón entró en la red.",
+        matters: "El marcador cambia. El ganador lidera.",
+        watch: "Observe la reanudación del partido."
+      },
+      child: {
+        happened: `¡GOOOL! ¡El balón entró como un cohete! ¡Todos celebran y saltan de alegría!`,
+        matters: "¡Meter un gol es como encontrar un cofre de tesoros mágicos!",
+        watch: "¡Mire a los jugadores hacer su baile de celebración!"
+      },
+      tactical: {
+        happened: `Gol convertido. Se produjo debido a un desajuste posicional en la cobertura defensiva.`,
+        matters: "Rompe la simetría táctica, obligando al rival a adelantar líneas.",
+        watch: "Observe el cambio en el bloque defensivo del equipo que ahora va ganando."
+      }
+    } : {
+      blind: {
+        happened: `Goal scored for ${moment.title}! Listen to the massive roar of the stadium crowd.`,
+        matters: "A goal drastically alters the acoustic atmosphere and team morale.",
+        watch: "Listen to the rising urgency in the defenders' clearances."
+      },
+      beginner: {
+        happened: `A player scored a goal for ${moment.title}. The ball crossed the goal line.`,
+        matters: "The scoring team gets a lead. The other team must now take risks to tie the game.",
+        watch: "Watch if the leading team switches to a safer, more defensive style."
+      },
+      cognitive: {
+        happened: "Goal scored. The ball is in the net.",
+        matters: "The score changes. One team leads.",
+        watch: "Watch the restart of play."
+      },
+      child: {
+        happened: `GOAL! The ball flew into the net like a rocket! Everyone is cheering!`,
+        matters: "Scoring a goal is like finding a chest of gold!",
+        watch: "Look at the players doing a happy celebration dance!"
+      },
+      tactical: {
+        happened: `Goal registered. Initiated by a breakdown in defensive spacing and secondary block coverage.`,
+        matters: "Breaks tactical symmetry, forcing the trailing side to commit numbers forward.",
+        watch: "Observe any structural changes in defensive line height."
+      }
+    };
+    return data[mode];
+  }
+
+  if (moment.type === "foul") {
+    const data: Record<ModeId, { happened: string; matters: string; watch: string }> = isEs ? {
+      blind: {
+        happened: "El juego se detiene por una falta. Escuche el silbato agudo del árbitro.",
+        matters: "Las faltas rompen el ritmo de juego y detienen la inercia del ataque.",
+        watch: "Escuche la colocación de la barrera y la advertencia del árbitro."
+      },
+      beginner: {
+        happened: "Un jugador cometió una falta por contacto ilegal. El árbitro detuvo el juego.",
+        matters: "El equipo afectado recibe un tiro libre para reanudar el partido sin oposición.",
+        watch: "Observe si el árbitro muestra una tarjeta amarilla de advertencia."
+      },
+      cognitive: {
+        happened: "Falta cometida. El juego se detiene temporalmente.",
+        matters: "Se otorga tiro libre.",
+        watch: "Observe el tiro libre."
+      },
+      child: {
+        happened: "¡Falta! Un jugador tropezó a otro sin querer. El árbitro dice: ¡Pausa!",
+        matters: "Debemos jugar limpio y cuidar a nuestros compañeros de juego.",
+        watch: "Busque si los jugadores se dan la mano deportivamente."
+      },
+      tactical: {
+        happened: "Infracción táctica registrada para frenar la transición ofensiva rival.",
+        matters: "Detiene el contraataque, permitiendo al bloque defensivo reorganizarse.",
+        watch: "Observe la acumulación de advertencias disciplinarias en mediocampistas centrales."
+      }
+    } : {
+      blind: {
+        happened: "Play stopped due to a foul. Listen to the referee's sharp whistle.",
+        matters: "Fouls disrupt transition tempo and release defensive pressure.",
+        watch: "Listen to the wall setup and referee instructions."
+      },
+      beginner: {
+        happened: "A player committed a foul due to illegal contact. The referee paused the play.",
+        matters: "The fouled team receives a free kick, letting them restart without pressure.",
+        watch: "Watch if the referee gives a yellow warning card."
+      },
+      cognitive: {
+        happened: "Foul committed. Play is paused.",
+        matters: "A free kick is awarded.",
+        watch: "Watch the free kick execution."
+      },
+      child: {
+        happened: "Foul! A player tripped another by accident. The referee says pause!",
+        matters: "We must play fair and make sure everyone is safe.",
+        watch: "Look if the players shake hands in friendly sportsmanship."
+      },
+      tactical: {
+        happened: "Tactical foul committed to halt opponent transition progress.",
+        matters: "Prevents immediate counter-attacks, allowing the defensive unit to drop.",
+        watch: "Track card accumulation in key defensive midfielders."
+      }
+    };
+    return data[mode];
+  }
+
+  if (moment.type === "substitution") {
+    const data: Record<ModeId, { happened: string; matters: string; watch: string }> = isEs ? {
+      blind: {
+        happened: "Sustitución. Escuche el aplauso del público al jugador saliente.",
+        matters: "Entra un jugador fresco para cambiar la energía física del mediocampo o defensa.",
+        watch: "Escuche la posición del nuevo jugador en el campo."
+      },
+      beginner: {
+        happened: "Un jugador cansado sale y entra un compañero de equipo fresco para ayudar.",
+        matters: "Los jugadores nuevos aportan energía cuando el equipo está cansado al final.",
+        watch: "Observe si el nuevo jugador corre más rápido para defender o atacar."
+      },
+      cognitive: {
+        happened: "Cambio de jugador. Entra un compañero fresco.",
+        matters: "Ayuda con el cansancio.",
+        watch: "Observe la nueva posición."
+      },
+      child: {
+        happened: "¡Cambio! Un jugador cansado va a descansar y su amigo entra corriendo al campo.",
+        matters: "¡Compartir y dar turnos ayuda a que todos jueguen felices!",
+        watch: "¡Diga hola al nuevo jugador en la cancha!"
+      },
+      tactical: {
+        happened: "Modificación táctica posicional para refrescar el carril lateral o central.",
+        matters: "Busca cambiar el dibujo táctico o refrescar la presión física.",
+        watch: "Observe si el equipo cambia a una formación con tres centrales o doble punta."
+      }
+    } : {
+      blind: {
+        happened: "Substitution active. Listen to the crowd applause for the leaving player.",
+        matters: "Introduces fresh energy to sustain midfield press or defensive coverage.",
+        watch: "Listen to where the new player positions on the pitch."
+      },
+      beginner: {
+        happened: "A player leaves the pitch and a fresh teammate enters to help.",
+        matters: "Fresh players bring energy late in the game when others are tired.",
+        watch: "Watch if the new player makes fast runs to attack or defend."
+      },
+      cognitive: {
+        happened: "Player switch. Fresh player enters.",
+        matters: "Solves player fatigue.",
+        watch: "Observe the new position."
+      },
+      child: {
+        happened: "Substitution! A tired player goes to rest and their friend runs in to play.",
+        matters: "Taking turns is fun and helps the team keep running!",
+        watch: "Say hello to the new player on the field!"
+      },
+      tactical: {
+        happened: "Personnel substitution to modify system spacing or energy profile.",
+        matters: "Aims to alter formation structure or refresh high-intensity press capability.",
+        watch: "Observe if the squad alters defensive line height post-substitution."
+      }
+    };
+    return data[mode];
+  }
+
+  // Default fallback for end or other types
+  const data: Record<ModeId, { happened: string; matters: string; watch: string }> = isEs ? {
+    blind: {
+      happened: "El partido ha terminado. Escuche el pitido final triple del árbitro.",
+      matters: "El silbatazo final sella el marcador oficial del encuentro.",
+      watch: "Escuche la celebración de los ganadores."
+    },
+    beginner: {
+      happened: "El juego ha terminado. Los equipos completaron los 90 minutos de juego.",
+      matters: "El pitido final concluye las acciones y confirma al equipo ganador.",
+      watch: "Observe a los jugadores saludándose deportivamente."
+    },
+    cognitive: {
+      happened: "Fin del partido. El juego ha terminado.",
+      matters: "Concluye el tiempo oficial.",
+      watch: "Observe el marcador final."
+    },
+    child: {
+      happened: "¡El silbato suena tres veces y termina el partido! ¡Bien jugado a todos!",
+      matters: "¡Ganar o perder no importa, lo divertido fue jugar juntos!",
+      watch: "¡Diga felicidades a ambos equipos!"
+    },
+    tactical: {
+      happened: "Finalización del encuentro. Concluye el tiempo reglamentario oficial.",
+      matters: "Finaliza el análisis táctico de fase activa de juego.",
+      watch: "Evalúe el impacto de las modificaciones en el bloque defensivo tardío."
+    }
   } : {
-    blind: "Audio focus:",
-    beginner: "Simple view:",
-    cognitive: "Short version:",
-    child: "Kid-friendly:",
-    tactical: "Tactical view:",
+    blind: {
+      happened: "The match has ended. Listen to the referee's final triple whistle.",
+      matters: "The full-time whistle cements the official scoreline.",
+      watch: "Listen to the players celebrating on the pitch."
+    },
+    beginner: {
+      happened: "The match is over. The teams have completed the 90 minutes of play.",
+      matters: "The final whistle concludes the play and confirms the winning squad.",
+      watch: "Watch the players shake hands in friendly sportsmanship."
+    },
+    cognitive: {
+      happened: "Full-time. The game has ended.",
+      matters: "Concludes the official duration.",
+      watch: "Observe the final score."
+    },
+    child: {
+      happened: "The whistle blows three times and the game ends! Good job, everyone!",
+      matters: "Winning or losing, the best part was playing together!",
+      watch: "Say congratulations to both teams!"
+    },
+    tactical: {
+      happened: "Match concluded. Regulation time has ended.",
+      matters: "Ends active phase tactical observation.",
+      watch: "Review the late-game block adjustments."
+    }
   };
-
-  const base: Record<MatchMoment["type"], { happened: string; matters: string; watch: string }> = language === 'es' ? {
-    start: {
-      happened: `${modePrefix[mode]} el partido ha comenzado, ambos equipos se posicionan antes de la primera jugada de peligro.`,
-      matters: "Los primeros minutos revelan qué equipo quiere proponer y dónde podrían abrirse espacios más adelante.",
-      watch: "Observe el parado del mediocampo, la intensidad de presión y cómo atacan tras recuperar el balón.",
-    },
-    end: {
-      happened: `${modePrefix[mode]} el partido ha terminado. El marcador final refleja cómo las decisiones y la fatiga cambiaron el juego.`,
-      matters: "El pitazo final une las decisiones previas, los cambios y los giros de ritmo en una sola historia.",
-      watch: "Revise el momento de mayor cambio, la sustitución más influyente y dónde se perdió el control.",
-    },
-    goal: {
-      happened: `${modePrefix[mode]} gol de ${moment.title} al minuto ${moment.minute}. La jugada terminó en gol porque la defensa no cerró el espacio a tiempo.`,
-      matters: "Los goles cambian el ánimo y la estrategia. El equipo que va ganando maneja el riesgo; el otro debe arriesgar más.",
-      watch: "Observe si el equipo que anotó baja el ritmo y si el rival adelanta sus líneas.",
-    },
-    foul: {
-      happened: `${modePrefix[mode]} una falta detuvo el juego al minuto ${moment.minute}. El árbitro intervino debido a un contacto indebido.`,
-      matters: "Las faltas cortan el ritmo de juego, protegen la defensa y pueden generar jugadas a balón parado muy peligrosas.",
-      watch: "Observe la barrera, el riesgo de tarjetas y si vuelven a atacar por la misma zona.",
-    },
-    hydration: {
-      happened: `${modePrefix[mode]} pausa de hidratación. Los jugadores aprovechan para refrescarse y escuchar indicaciones breves.`,
-      matters: "Las pausas pueden romper el ritmo. El equipo presionado toma un respiro, mientras que el dominante puede perder inercia.",
-      watch: "Siga los primeros dos minutos tras reanudar; suele mostrar cuál entrenador aprovechó mejor la pausa.",
-    },
-    momentum: currentMatchDict[mode],
-    substitution: {
-      happened: `${modePrefix[mode]} cambio al minuto ${moment.minute}. Entra un jugador fresco con instrucciones específicas del técnico.`,
-      matters: "Los cambios resuelven el cansancio, cambian la táctica o protegen a jugadores con tarjetas.",
-      watch: "Observe dónde se posiciona el nuevo jugador y si cargan el ataque por su banda.",
-    },
-  } : {
-    start: {
-      happened: `${modePrefix[mode]} the match has started, and both teams are arranging their shape before the first major pressure moment.`,
-      matters: "The first few minutes show which team wants the ball, which team waits deeper, and where space may open later.",
-      watch: "Watch the midfield spacing, the first pressing trigger, and whether either team attacks quickly after winning the ball.",
-    },
-    end: {
-      happened: `${modePrefix[mode]} the match has ended, so the final score is less important here than understanding the moments that changed control.`,
-      matters: "Full-time is where fans can connect earlier decisions, fatigue, substitutions, and momentum shifts into one clear story.",
-      watch: "Review the biggest swing, the most important substitution, and the moment where one team lost control.",
-    },
-    goal: {
-      happened: `${modePrefix[mode]} ${moment.title} happened at ${moment.minute}. A scoring chance became a goal because the defending team could not close the key space in time.`,
-      matters: "Goals change emotion and tactics. The leading team can manage risk, while the trailing team usually has to attack with more urgency.",
-      watch: "Watch whether the scoring team slows the tempo, and whether the other team commits more players forward.",
-    },
-    foul: {
-      happened: `${modePrefix[mode]} a foul stopped play at ${moment.minute}. The referee paused the match because contact or positioning broke the rules of play.`,
-      matters: "A foul can break rhythm, protect a defense, or create a dangerous restart. It also changes how aggressively a player can defend afterward.",
-      watch: "Watch the free-kick setup, the card risk, and whether the fouled team attacks the same area again.",
-    },
-    hydration: {
-      happened: `${modePrefix[mode]} the match paused for hydration. Players used the break to drink, cool down, and receive short instructions.`,
-      matters: "Breaks can reset momentum. A team under pressure gets time to breathe, while a team in control may lose rhythm.",
-      watch: "Watch the first two minutes after the restart. That often shows which coach used the break better.",
-    },
-    momentum: currentMatchDict[mode],
-    substitution: {
-      happened: `${modePrefix[mode]} substitution at ${moment.minute}. A player left the match and a fresh player entered with a new job.`,
-      matters: "Substitutions can solve fatigue, change tactics, or protect a player. They are one of the clearest signs that the coach sees a problem.",
-      watch: "Watch where the new player stands, who presses less, and whether the team attacks through a different side.",
-    },
-  };
-
-  return base[moment.type];
+  return data[mode];
 }
 
 function getTeamFlagClass(teamName: string): string {
