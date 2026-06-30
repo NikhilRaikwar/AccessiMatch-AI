@@ -848,3 +848,89 @@ input[type="range"] {
   animation: spin 1s linear infinite;
 }
 
+/* Accessibility Variables & Scales */
+.app {
+  font-size: calc(1rem * var(--text-scale, 1));
+}
+
+/* Dyslexic Friendly Typography */
+.app.dyslexic-text,
+.app.dyslexic-text * {
+  font-family: "Comic Sans MS", "Arial Rounded MT Bold", sans-serif !important;
+  letter-spacing: 0.06em !important;
+  word-spacing: 0.15em !important;
+  line-height: 1.8 !important;
+}
+
+/* Reduce Motion */
+.app.reduce-motion,
+.app.reduce-motion * {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* High Contrast Theme */
+.app.high-contrast-mode {
+  --bg: #000000;
+  --panel: #000000;
+  --text: #ffffff;
+  --muted: #dddddd;
+  --line: #ffffff;
+  --line-strong: #ffffff;
+  --blue: #ffff00;
+  --blue-dark: #222222;
+  --coral: #ff3366;
+  --green: #00ff88;
+  --yellow: #ffff00;
+  --lavender: #222222;
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+.app.high-contrast-mode .panel,
+.app.high-contrast-mode .topbar,
+.app.high-contrast-mode .match-selectors button,
+.app.high-contrast-mode .select-button,
+.app.high-contrast-mode .explain-card,
+.app.high-contrast-mode .audio-player,
+.app.high-contrast-mode .pipeline-steps article,
+.app.high-contrast-mode .timeline-list button.selected,
+.app.high-contrast-mode .control-group input,
+.app.high-contrast-mode .sources a {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+.app.high-contrast-mode button.active,
+.app.high-contrast-mode button.selected {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffff00 !important;
+}
+
+.app.high-contrast-mode svg {
+  stroke: #ffffff !important;
+}
+
+/* Flag Gradients */
+.flag.argentina {
+  background: linear-gradient(#74acdf 0 33%, #ffffff 33% 66%, #74acdf 66%);
+}
+
+.flag.france {
+  background: linear-gradient(90deg, #002395 0 33%, #ffffff 33% 66%, #ed2939 66%);
+}
+
+.flag.germany {
+  background: linear-gradient(#000000 0 33%, #dd0000 33% 66%, #ffcf00 66%);
+}
+
+.flag.japan {
+  background: radial-gradient(circle, #bc002d 0 35%, #ffffff 36%);
+}
+
+
+
