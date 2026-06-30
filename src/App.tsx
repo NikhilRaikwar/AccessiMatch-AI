@@ -1720,13 +1720,13 @@ Ensure JSON format:
         <div className="panel pipeline">
           <h2>{isEs ? "Flujo de explicación con IA" : "AI explanation pipeline"} <Info size={16} /></h2>
           <div className="pipeline-steps">
-            <article><strong>IBM Granite</strong><span>{isEs ? "Entendimiento y síntesis" : "Understand & summarize"}</span></article>
+            <article><strong>IBM Granite</strong><span>{isEs ? "Comprensión y síntesis" : "Understand & summarize"}</span></article>
             <i />
-            <article><strong>Docling</strong><span>{isEs ? "Extracción de reportes" : "Extract match data"}</span></article>
+            <article><strong>Docling</strong><span>{isEs ? "Extraer datos del partido" : "Extract match data"}</span></article>
             <i />
-            <article><strong>LangChain</strong><span>{isEs ? "Orquestación y promts" : "Orchestrate & generate"}</span></article>
+            <article><strong>LangChain</strong><span>{isEs ? "Orquestar y generar" : "Orchestrate & generate"}</span></article>
             <i />
-            <article><strong>Accessibility layer</strong><span>{isEs ? "Adaptación e interfaz" : "Adapt for all users"}</span></article>
+            <article><strong>Accessibility layer</strong><span>{isEs ? "Adaptar para todos los usuarios" : "Adapt for all users"}</span></article>
           </div>
         </div>
         <div className="panel score-panel">
