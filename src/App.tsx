@@ -1718,15 +1718,15 @@ Ensure JSON format:
 
       <section className="bottom-band">
         <div className="panel pipeline">
-          <h2>{isEs ? "Flujo de explicación con IA" : "AI explanation pipeline"} <Info size={16} /></h2>
+          <h2>{isEs ? "Flujo de explicación del prototipo" : "Prototype explanation pipeline"} <Info size={16} /></h2>
           <div className="pipeline-steps">
-            <article><strong>IBM Granite</strong><span>{isEs ? "Comprensión y síntesis" : "Understand & summarize"}</span></article>
+            <article><strong>Football API</strong><span>{isEs ? "Obtener partidos reales" : "Fetch live tournament data"}</span></article>
             <i />
-            <article><strong>Docling</strong><span>{isEs ? "Extraer datos del partido" : "Extract match data"}</span></article>
+            <article><strong>Vite & Vercel Proxy</strong><span>{isEs ? "Enrutamiento proxy sin CORS" : "Secure CORS bypass routing"}</span></article>
             <i />
-            <article><strong>LangChain</strong><span>{isEs ? "Orquestar y generar" : "Orchestrate & generate"}</span></article>
+            <article><strong>OpenAI GPT-4o-mini</strong><span>{isEs ? "Generar explicaciones adaptadas" : "Generate tailored explanations"}</span></article>
             <i />
-            <article><strong>Accessibility layer</strong><span>{isEs ? "Adaptar para todos los usuarios" : "Adapt for all users"}</span></article>
+            <article><strong>Accessibility Layer</strong><span>{isEs ? "Síntesis de voz e interfaz accesible" : "Voice synthesis & responsive UX"}</span></article>
           </div>
         </div>
         <div className="panel score-panel">
